@@ -29,6 +29,7 @@ the specific language governing permissions and limitations under the License.
 #include "LookupTable.h"
 
 #include <AK/AkWwiseSDKVersion.h>
+#include <algorithm>
 extern "C" void Sin_func(float* a, float* b, int buffersize, int stepPoint, float Hz);
 
 AK::IAkPlugin* CreateBetter_SinSource(AK::IAkPluginMemAlloc* in_pAllocator)
@@ -75,6 +76,8 @@ AKRESULT Better_SinSource::Term(AK::IAkPluginMemAlloc* in_pAllocator)
 
 AKRESULT Better_SinSource::Reset()
 {
+    BufferSize = 0;
+    StepPoint = 0;
     return AK_Success;
 }
 
@@ -95,13 +98,17 @@ void Better_SinSource::Execute(AkAudioBuffer* out_pBuffer)
 
     const AkUInt32 uNumChannels = out_pBuffer->NumChannels();
 
-
-    AkReal32* AK_RESTRICT pBuf = (AkReal32* AK_RESTRICT)out_pBuffer->GetChannel(0);
+    AkReal32* AK_RESTRICT pBuf = out_pBuffer->GetChannel(0);
 
     Sin_func(&LookupTable.sinTable[0], pBuf, out_pBuffer->uValidFrames, BufferSize, Hz);
 
+    for (AkUInt32 uChan = 1; uChan < uNumChannels; ++uChan)
+    {
+        AkReal32* AK_RESTRICT pDst = out_pBuffer->GetChannel(uChan);
+        std::copy(pBuf, pBuf + out_pBuffer->uValidFrames, pDst);
+    }
 
-    BufferSize += out_pBuffer->MaxFrames();
+    BufferSize += out_pBuffer->uValidFrames;
 }
 
 AkReal32 Better_SinSource::GetDuration() const
